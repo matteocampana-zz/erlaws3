@@ -1,11 +1,13 @@
 {application, erlaws3,
  [{description, "An OTP application"},
   {vsn, "0.1.0"},
+  {lager, "3.5.1"},
   {registered, []},
   {applications,
    [kernel,
     stdlib,
     hackney,
+    lager,
     erlxml
    ]},
   {env,[]},

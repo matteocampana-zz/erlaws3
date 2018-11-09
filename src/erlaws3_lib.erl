@@ -12,7 +12,8 @@
   complete_multipart_upload/6,
   abort_multipart_upload/5,
   delete_object/4,
-  manual_stream_upload/6
+  manual_stream_upload/6,
+  get_signed_url/5
 ]).
 
 -include_lib("erlxml/include/erlxml.hrl").
@@ -152,3 +153,9 @@ manual_stream_upload(ConnPid, BucketUrl, ObjectName, AwsRegion, ContentSize, Ext
   Headers = ExtraHeaders ++ [ {<<"content-length">>, ContentSize} |
   erlaws3_headers:generate(BucketUrl, <<"PUT">>, ObjectName, <<>>, AwsRegion, ?SCOPE)],
   hackney:send_request(ConnPid, {put, ObjectName, Headers, stream}).
+
+%%====================================================================
+%% @doc Create signed Url
+%%====================================================================
+get_signed_url(HttpVerb, BucketUrl, ObjectName, AwsRegion, Ttl) ->
+  erlaws3_headers:generate_signed_url(BucketUrl, HttpVerb, ObjectName, AwsRegion, ?SCOPE, Ttl).

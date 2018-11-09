@@ -9,6 +9,9 @@
 % Stream upload
 -export([open_stream/3, open_stream/5, upload_to_stream/2, close_stream/1]).
 
+% Presigned URL
+-export([create_presigned_url/5]).
+
 -define(BUCKET_URL(Bucket), <<Bucket/binary, ".s3.amazonaws.com">>).
 -define(MIN_PART_SIZE, 5242880). % S3 Minumum Size for Multipart Upload
 
@@ -196,3 +199,11 @@ define_parts(FileSize) ->
     {PartCount, PartSize, LastSize}
   end.
 
+%%===================================================================================================================
+%% @doc Create presigned URL (see: https://docs.aws.amazon.com/en_us/AmazonS3/latest/API/sigv4-query-string-auth.html)
+%% open_stream(<<"GET">>, <<"bucket">>, <<"/aws_file_path">>, <<"region">>, 300)
+%%====================================================================================================================
+-spec create_presigned_url(bitstring(), bitstring(), bitstring(), bitstring(), integer()) -> ok.
+create_presigned_url(HttpVerb, Bucket, ObjectName, AwsRegion, Ttl) ->
+  BucketUrl = ?BUCKET_URL(Bucket),
+  erlaws3_lib:get_signed_url(HttpVerb, BucketUrl, ObjectName, AwsRegion, Ttl).

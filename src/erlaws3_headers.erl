@@ -4,7 +4,7 @@
 %% @end
 %%%-------------------------------------------------------------------
 -module(erlaws3_headers).
--export([generate/6]).
+-export([generate/6, generate_signed_url/6]).
 -define(PAYLOAD_HASH, <<"UNSIGNED-PAYLOAD">>).
 
 %%====================================================================
@@ -74,7 +74,36 @@ generate_string_to_sign(Date, Timestamp, AwsRegion, Scope, CanonicalRequest) ->
 %%====================================================================
 generate_signing_key(Date, AwsRegion, Scope) ->
   SecretKey = application:get_env(erlaws3, secret_key, <<>>),
+ %% SecretKey2 = list_to_binary(string:replace(SecretKey, "/", "%2F", all)),
   DateKey = crypto:hmac(sha256, <<"AWS4", SecretKey/binary>>, Date),
   RegionKey = crypto:hmac(sha256, DateKey, AwsRegion),
   ScopeKey = crypto:hmac(sha256, RegionKey, Scope),
   crypto:hmac(sha256, ScopeKey, <<"aws4_request">>).
+
+%%====================================================================
+%% @doc Generate signed URL
+%%====================================================================
+generate_signed_url(Host, HttpVerb, CanonicalUri, AwsRegion, Scope, Ttl) ->
+  Date = erlaws3_utils:get_date(),
+  Timestamp = erlaws3_utils:get_timestamp(),
+  AccessKey = application:get_env(erlaws3, access_key, <<>>),
+  Credential = <<AccessKey/binary, "/", Date/binary, "/", AwsRegion/binary, "/", Scope/binary, "/aws4_request">>,
+  Headers = [{<<"host">>, Host}],
+  SignedHeaders = <<"host">>,
+
+  EscapedCredential = erlaws3_utils:escape_uri(Credential),
+
+  CanonicalQueryString = <<"X-Amz-Algorithm=AWS4-HMAC-SHA256?X-Amz-Credential=",
+    Credential/binary, "&X-Amz-Date=", Timestamp/binary, "&X-Amz-Expires=",
+    Ttl/binary, "&X-Amz-SignedHeaders=", SignedHeaders/binary>>,
+
+  EscapedCanonicalQueryString = list_to_binary(erlaws3_utils:escape_uri(CanonicalQueryString)),
+
+  Signature = generate_signature(HttpVerb, CanonicalUri, EscapedCanonicalQueryString, Headers, AwsRegion, Scope, Date, Timestamp),
+  <<"https://" , Host/binary, "/", CanonicalUri/binary,
+    "?X-Amz-Algorithm=AWS4-HMAC-SHA256" ,
+    "&X-Amz-Credential=", (list_to_binary(EscapedCredential))/binary,
+    "&X-Amz-Date=", Timestamp/binary,
+    "&X-Amz-Expires=", Ttl/binary,
+    "&X-Amz-SignedHeaders=", SignedHeaders/binary,
+    "&X-Amz-Signature=", Signature/binary>>.
